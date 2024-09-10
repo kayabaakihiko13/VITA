@@ -6,7 +6,14 @@
 #include <raylib.h>
 #include <string.h>
 
-// Fungsi untuk mengubah ukuran gambar sesuai dengan skala maksimum
+// Define the Button structure
+typedef struct Button {
+    Rectangle bounds;  // Rectangle representing the button's position and size
+    const char *label; // Label of the button
+    Color color;       // Button color
+} Button;
+
+// Function to scale an image to fit within the specified maximum dimensions
 void ScaleImage(Image *image, int maxWidth, int maxHeight) {
     float scaleWidth = (float)maxWidth / image->width;
     float scaleHeight = (float)maxHeight / image->height;
@@ -15,8 +22,22 @@ void ScaleImage(Image *image, int maxWidth, int maxHeight) {
     int newWidth = (int)(image->width * scale);
     int newHeight = (int)(image->height * scale);
     
-    // Resize image
+    // Resize the image
     ImageResize(image, newWidth, newHeight);
 }
 
-#endif //CONTROL_H
+// Function to draw a button on the screen
+void DrawButton(Button button) {
+    DrawRectangleRec(button.bounds, button.color); // Draw button background
+    DrawText(button.label, button.bounds.x + 10, button.bounds.y + 10, 20, WHITE); // Draw button label
+}
+
+// Function to detect if a button is clicked
+bool isButtonClicked(Button button) {
+    if (CheckCollisionPointRec(GetMousePosition(), button.bounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        return true;
+    }
+    return false;
+}
+
+#endif // CONTROL_H
