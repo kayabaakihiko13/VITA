@@ -1,0 +1,7 @@
+repos:
+  - repo: https://github.com/cpp-linter/cpp-linter-hooks
+    rev: v0.5.1  # Use the ref you want to point at
+    hooks:
+      - id: clang-format
+      # to load .clang-format
+        args: [--style=LLVM] 
