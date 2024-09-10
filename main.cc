@@ -1,26 +1,22 @@
 #include "raylib.h"
 #include <string.h>
+#include <stdio.h>
 #include "include/control.h"
-
-typedef struct {
-    Rectangle rect;
-    const char *text;
-    Color color;
-} Button;
 
 int main(void)
 {
     InitWindow(WIDTH_WINDOW, HEIGHT_WINDOW, "Image Upload GUI");
-    // show image icon
+
+    // Show image icon
     Image icon = LoadImage("assets/logo.png");
     SetWindowIcon(icon);
-    // membersihkan memori pada gambar icon
-    UnloadImage(icon);
+    UnloadImage(icon); // Clean up icon memory
+
     Button buttons[4] = {
-        {{0, 0, 200, 50}, "Nearest Neighbor", {109, 104, 117, 255}},
-        {{0, 50, 200, 50}, "Nearest Neighbor", {134, 129, 140, 255}},
-        {{0, 100, 200, 50}, "", {159, 154, 163, 255}},
-        {{0, 150, 200, 50}, "", {184, 179, 186, 255}}
+        {{0, 10, 200, 50}, "Nearest Neighbor", {109, 104, 117, 255}},
+        {{0, 60, 200, 50}, "Grid Uniform Distribution", {134, 129, 140, 255}},
+        {{0, 110, 200, 50}, "Poisson disc", {159, 154, 163, 255}},
+        {{0, 160, 200, 50}, "HRAA", {184, 179, 186, 255}}
     };
 
     Texture2D texture = {0};
@@ -30,7 +26,7 @@ int main(void)
 
     while (!WindowShouldClose())
     {
-        // Update
+        // Handle image loading from file drop
         if (IsFileDropped())
         {
             FilePathList droppedFiles = LoadDroppedFiles();
@@ -38,35 +34,35 @@ int main(void)
             {
                 if (imageLoaded) UnloadTexture(texture);
 
-                // Load the image first
                 Image image = LoadImage(droppedFiles.paths[0]);
-
-                // Scale the image
-                ScaleImage(&image, WIDTH_WINDOW - 200, HEIGHT_WINDOW);
-
-                // Convert Image to Texture
+                ScaleImage(&image, WIDTH_WINDOW - 200, HEIGHT_WINDOW); // Scale the image
                 texture = LoadTextureFromImage(image);
-
-                // Unload image from CPU memory after converting to texture
                 UnloadImage(image);
-                
+
                 imageLoaded = true;
             }
             UnloadDroppedFiles(droppedFiles);
         }
 
-        // Draw
+        // Draw everything
         BeginDrawing();
         ClearBackground((Color){222, 222, 222, 255}); // Light gray background
 
-        // Draw buttons
+        // Draw buttons and handle button clicks
         for (int i = 0; i < 4; i++)
         {
-            DrawRectangleRec(buttons[i].rect, buttons[i].color);
-            if (strlen(buttons[i].text) > 0)
-            {
-                DrawText(buttons[i].text, buttons[i].rect.x + 10, buttons[i].rect.y + 15, 20, WHITE);
+            if (CheckCollisionPointRec(GetMousePosition(), buttons[i].bounds)) {
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    buttons[i].color = (Color){255, 0, 0, 255}; // Red color when clicked
+                    printf("Button '%s' clicked!\n", buttons[i].label);
+                } else {
+                    buttons[i].color = (Color){150, 150, 150, 255}; // Light gray when hovered
+                }
+            } else {
+                buttons[i].color = (Color){109, 104, 117, 255}; // Reset color when not hovered
             }
+
+            DrawButton(buttons[i]);
         }
 
         // Draw image area
@@ -80,7 +76,7 @@ int main(void)
         }
         else
         {
-            DrawText("Drag and drop Image file", 300, HEIGHT_WINDOW / 2 - 10, 20, WHITE);
+            DrawText("Drag and drop Image file", 400, HEIGHT_WINDOW / 2 - 5, 20, WHITE);
         }
 
         EndDrawing();
