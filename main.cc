@@ -30,8 +30,10 @@ int main(void) {
 
   ImageData imageData = {0};
   bool imageLoaded = false;
-  bool showMessage = false; // Whether to show the message
-  float messageTime = 0.0f; // Time when message should disappear
+  // Whether to show the message
+  bool showMessage = false;
+  // Time when message should disappear
+  float messageTime = 0.0f;
   SetTargetFPS(60);
 
   while (!WindowShouldClose()) {
@@ -47,6 +49,7 @@ int main(void) {
 
         imageData.original = LoadImage(droppedFiles.paths[0]);
         if (imageData.original.data != NULL) {
+          ImageFormat(&imageData.original, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
           imageData.processed = ImageCopy(imageData.original);
           imageData.scale = 1.0f;
 
@@ -80,25 +83,26 @@ int main(void) {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
       for (int i = 0; i < MAX_BUTTONS; i++) {
         if (CheckCollisionPointRec(mousePosition, buttons[i].bounds)) {
-          if (i == 0) { // If "Nearest Neighbor" button is clicked
-            showMessage = true;
-            messageTime = GetTime(); // Record the time when the message should
-                                     // start displaying
+          switch (i) {
+          case 0: // Nearest Neighbor
+            applyNearestNeighbor(&imageData.processed, 1.0f);
+            break;
+          case 1: // Grid Uniform Distribution
+            ApplyGridUniformDistribution(&imageData.processed, 3);
+            break;
+          case 2: // Poisson disc
+            ApplyPoissonDiscSampling(&imageData.processed, 3, 0.5);
+            break;
+          case 3: // HRAA
+            ApplyHRAA(&imageData.processed, 1);
+            break;
           }
           buttons[i].color = (Color){255, 0, 0, 255}; // Red color when clicked
+          showMessage = true;
+          messageTime = GetTime();
         } else {
           buttons[i].color =
               (Color){150, 150, 150, 255}; // Light gray when hovered
-        }
-      }
-    } else {
-      for (int i = 0; i < MAX_BUTTONS; i++) {
-        if (CheckCollisionPointRec(mousePosition, buttons[i].bounds)) {
-          buttons[i].color =
-              (Color){150, 150, 150, 255}; // Light gray when hovered
-        } else {
-          buttons[i].color =
-              (Color){109, 104, 117, 255}; // Reset color when not hovered
         }
       }
     }

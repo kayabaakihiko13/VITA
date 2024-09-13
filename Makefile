@@ -4,7 +4,7 @@ RAYLIB_PATH := $(RAYLIB_PATH)
 
 # Flags untuk kompilasi
 CXXFLAGS := -O2 -Wall -Wno-missing-braces -I$(RAYLIB_PATH)/src
-LDFLAGS := -L$(RAYLIB_PATH)/src -lraylib -lopengl32 -lgdi32 -lwinmm -mwindows
+LDFLAGS := -L$(RAYLIB_PATH)/src -lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -msse4.1
 
 # Nama target
 TARGET := output.exe
