@@ -1,9 +1,9 @@
 #ifndef SSAA_H
 #define SSAA_H
 
+#include "control.h"
 #include <math.h>
 #include <raylib.h>
-
 #define MIN_SCALE_FACTOR 1.0f
 #define MAX_SCALE_FACTOR 2.5f
 
@@ -68,109 +68,54 @@ void SetImageColor(Image *image, int x, int y, Color color) {
   pixels[y * image->width + x] = color;
 }
 
-// Fungsi untuk menerapkan distribusi warna seragam pada grid
-// void applyGridUniformDistribution(Image *image) {
-//     int gridSize = 4;
+// Function to perform Grid Uniform Distribution for supersampling
+static Color GridUniformDistribution(Image *image, int gridSize, int x, int y) {
+  int sampleCount = gridSize * gridSize;
+  float sampleStep = 1.0f / gridSize;
+  Color finalColor = {0, 0, 0, 255};
+  float red = 0.0f, green = 0.0f, blue = 0.0f;
 
-//     for (int y = 0; y < image->height; y += gridSize) {
-//         for (int x = 0; x < image->width; x += gridSize) {
-//             Color avgColor = {0};
-//             int count = 0;
+  // Loop over the grid
+  for (int i = 0; i < gridSize; i++) {
+    for (int j = 0; j < gridSize; j++) {
+      float subPixelX = x + (i + 0.5f) * sampleStep;
+      float subPixelY = y + (j + 0.5f) * sampleStep;
 
-//             for (int dy = 0; dy < gridSize && y + dy < image->height; dy++) {
-//                 for (int dx = 0; dx < gridSize && x + dx < image->width;
-//                 dx++) {
-//                     Color pixelColor = GetImageColor(image, x + dx, y + dy);
-//                     avgColor.r += pixelColor.r;
-//                     avgColor.g += pixelColor.g;
-//                     avgColor.b += pixelColor.b;
-//                     count++;
-//                 }
-//             }
+      int imgX = (int)Clamp(subPixelX, 0, image->width - 1);
+      int imgY = (int)Clamp(subPixelY, 0, image->height - 1);
+      Color sampleColor = GetImageColor(*image, imgX, imgY);
 
-//             avgColor.r /= count;
-//             avgColor.g /= count;
-//             avgColor.b /= count;
+      red += sampleColor.r;
+      green += sampleColor.g;
+      blue += sampleColor.b;
+    }
+  }
 
-//             for (int dy = 0; dy < gridSize && y + dy < image->height; dy++) {
-//                 for (int dx = 0; dx < gridSize && x + dx < image->width;
-//                 dx++) {
-//                     SetImageColor(image, x + dx, y + dy, avgColor);
-//                 }
-//             }
-//         }
-//     }
-// }
+  finalColor.r = (unsigned char)(red / sampleCount);
+  finalColor.g = (unsigned char)(green / sampleCount);
+  finalColor.b = (unsigned char)(blue / sampleCount);
+  return finalColor;
+}
 
-// Fungsi penerapan Poisson Disc Sampling
+// Function to apply supersampling to an image
+void ApplyGridUniformDistribution(Image *image, int gridSize) {
+  int width = image->width;
+  int height = image->height;
+  Image supersampledImage = GenImageColor(width, height, BLANK);
 
-// void applyPoissonDisc(Image *image) {
-//     int radius = 10;
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      Color color = GridUniformDistribution(image, gridSize, x, y);
 
-//     for (int y = 0; y < image->height; y += radius * 2) {
-//         for (int x = 0; x < image->width; x += radius * 2) {
-//             int sampleX = x + rand() % radius;
-//             int sampleY = y + rand() % radius;
+      ImageDrawPixel(&supersampledImage, x, y, color);
+    }
+  }
 
-//             if (sampleX < image->width && sampleY < image->height) {
-//                 Color sampleColor = GetImageColor(image, sampleX, sampleY);
-
-//                 for (int dy = -radius; dy <= radius; dy++) {
-//                     for (int dx = -radius; dx <= radius; dx++) {
-//                         int px = sampleX + dx;
-//                         int py = sampleY + dy;
-
-//                         if (px >= 0 && px < image->width && py >= 0 && py <
-//                         image->height) {
-//                             float distance = sqrt(dx * dx + dy * dy);
-//                             if (distance <= radius) {
-//                                 SetImageColor(image, px, py, sampleColor);
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// Fungsi untuk penerapan Hybrid Resolution Anti-Aliasing (HRAA)
-
-// void applyHRAA(Image *image) {
-//     int factor = 2;
-//     Image tempImage = ImageCopy(*image);
-
-//     for (int y = 0; y < image->height; y++) {
-//         for (int x = 0; x < image->width; x++) {
-//             Color sumColor = {0};
-//             int count = 0;
-
-//             for (int dy = -factor / 2; dy <= factor / 2; dy++) {
-//                 for (int dx = -factor / 2; dx <= factor / 2; dx++) {
-//                     int sx = x + dx;
-//                     int sy = y + dy;
-
-//                     if (sx >= 0 && sx < image->width && sy >= 0 && sy <
-//                     image->height) {
-//                         Color sampleColor = GetImageColor(&tempImage, sx,
-//                         sy); sumColor.r += sampleColor.r; sumColor.g +=
-//                         sampleColor.g; sumColor.b += sampleColor.b; count++;
-//                     }
-//                 }
-//             }
-
-//             Color avgColor = {
-//                 sumColor.r / count,
-//                 sumColor.g / count,
-//                 sumColor.b / count,
-//                 255
-//             };
-
-//             SetImageColor(image, x, y, avgColor);
-//         }
-//     }
-
-//     UnloadImage(tempImage);
-// }
+  // Replace the original image with the supersampled image
+  Image tempImage = ImageCopy(supersampledImage);
+  UnloadImage(supersampledImage);
+  UnloadImage(*image);
+  *image = tempImage;
+}
 
 #endif // SSAA_H

@@ -1,3 +1,4 @@
+#include "include/SSAA.h"
 #include "include/control.h"
 #include <raylib.h>
 #include <stdlib.h>
@@ -5,66 +6,8 @@
 
 #define MAX_BUTTONS 4
 #define ZOOM_FACTOR 1.2f
-#define MESSAGE_DISPLAY_TIME                                                   \
-  3.0f // Time in seconds for the message to be displayed
-
-// Define Clamp function to restrict values within a range
-float Clamp(float value, float min, float max) {
-  if (value < min)
-    return min;
-  if (value > max)
-    return max;
-  return value;
-}
-
-// Function to perform Grid Uniform Distribution for supersampling
-Color GridUniformDistribution(Image *image, int gridSize, int x, int y) {
-  int sampleCount = gridSize * gridSize;
-  float sampleStep = 1.0f / gridSize;
-  Color finalColor = {0, 0, 0, 255};
-  float red = 0.0f, green = 0.0f, blue = 0.0f;
-
-  // Loop over the grid
-  for (int i = 0; i < gridSize; i++) {
-    for (int j = 0; j < gridSize; j++) {
-      float subPixelX = x + (i + 0.5f) * sampleStep;
-      float subPixelY = y + (j + 0.5f) * sampleStep;
-
-      int imgX = (int)Clamp(subPixelX, 0, image->width - 1);
-      int imgY = (int)Clamp(subPixelY, 0, image->height - 1);
-      Color sampleColor = GetImageColor(*image, imgX, imgY);
-
-      red += sampleColor.r;
-      green += sampleColor.g;
-      blue += sampleColor.b;
-    }
-  }
-
-  finalColor.r = (unsigned char)(red / sampleCount);
-  finalColor.g = (unsigned char)(green / sampleCount);
-  finalColor.b = (unsigned char)(blue / sampleCount);
-  return finalColor;
-}
-
-// Function to apply supersampling to an image
-void ApplySupersampling(Image *image, int gridSize) {
-  int width = image->width;
-  int height = image->height;
-  Image supersampledImage = GenImageColor(width, height, BLANK);
-
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      Color color = GridUniformDistribution(image, gridSize, x, y);
-      ImageDrawPixel(&supersampledImage, x, y, color);
-    }
-  }
-
-  // Replace the original image with the supersampled image
-  Image tempImage = ImageCopy(supersampledImage);
-  UnloadImage(supersampledImage);
-  UnloadImage(*image);
-  *image = tempImage;
-}
+// Time in seconds for the message to be displayed
+#define MESSAGE_DISPLAY_TIME 3.0
 
 int main(void) {
   // Initialize window
@@ -118,10 +61,12 @@ int main(void) {
                       (int)(imageData.original.width * imageData.scale),
                       (int)(imageData.original.height * imageData.scale));
 
-          // Compress the image and apply supersampling
+          // Compress the image and apply Grid Uniform Distribution
+          // supersampling
           CompressImage(&imageData.processed);
-          ApplySupersampling(&imageData.processed,
-                             3); // Apply 3x3 supersampling
+          ApplyGridUniformDistribution(&imageData.processed,
+                                       3); // Apply 3x3 supersampling
+
           imageData.texture = LoadTextureFromImage(imageData.processed);
           imageData.currentMethod = NULL;
           imageLoaded = true;
@@ -166,43 +111,40 @@ int main(void) {
     BeginDrawing();
     ClearBackground((Color){222, 222, 222, 255}); // Light gray background
 
-    // Draw buttons and handle button clicks
+    // Draw buttons
     for (int i = 0; i < MAX_BUTTONS; i++) {
       DrawRectangleRec(buttons[i].bounds, buttons[i].color);
       DrawText(buttons[i].label, buttons[i].bounds.x + 10,
                buttons[i].bounds.y + 15, 20, BLACK);
     }
 
-    // Draw image area
+    // Draw image area background
     DrawRectangle(200, 0, WIDTH_WINDOW - 200, HEIGHT_WINDOW, BLACK);
 
+    // Draw the image or display the drag-and-drop message
     if (imageLoaded) {
-      // Scale image to fit within the drag-and-drop area
-      int imageWidth = imageData.processed.width;
-      int imageHeight = imageData.processed.height;
-      int targetWidth = WIDTH_WINDOW - 200;
-      int targetHeight = HEIGHT_WINDOW;
-      float scaleX = (float)targetWidth / imageWidth;
-      float scaleY = (float)targetHeight / imageHeight;
-      float scale = (scaleX < scaleY) ? scaleX : scaleY;
-
-      int scaledWidth = (int)(imageWidth * scale);
-      int scaledHeight = (int)(imageHeight * scale);
-      int imageX = 200 + (targetWidth - scaledWidth) / 2;
-      int imageY = (targetHeight - scaledHeight) / 2;
-      DrawTextureEx(imageData.texture, (Vector2){imageX, imageY}, 0.0f, scale,
-                    WHITE);
+      int imageX = 200 + ((WIDTH_WINDOW - 200) - imageData.texture.width) / 2;
+      int imageY = (HEIGHT_WINDOW - imageData.texture.height) / 2;
+      DrawTexture(imageData.texture, imageX, imageY, WHITE);
     } else {
-      DrawText("Drag and drop Image file", 400, HEIGHT_WINDOW / 2 - 5, 20,
-               WHITE);
+      int textWidth = MeasureText("Drag and drop Image file", 20);
+      DrawText("Drag and drop Image file",
+               200 + (WIDTH_WINDOW - 200 - textWidth) / 2,
+               HEIGHT_WINDOW / 2 - 10, 20, WHITE);
     }
 
     // Show top-up message if "Nearest Neighbor" was activated
     if (showMessage) {
-      const char *message = "Top-up Successful";
-      int textWidth = MeasureText(message, 20);
-      DrawText(message, WIDTH_WINDOW / 2 - textWidth / 2,
-               HEIGHT_WINDOW / 2 - 10, 20, GREEN);
+      const char *msg_success = "Top-up Successful";
+      const char *msg_warning = "Please drag and drop your Picture";
+      int textWidth_success = MeasureText(msg_success, 20);
+      if (imageData.original.data == NULL) {
+        DrawText(msg_warning, WIDTH_WINDOW / 2 - textWidth_success / 2,
+                 HEIGHT_WINDOW / 2 - 10, 20, RED);
+      } else {
+        DrawText(msg_success, WIDTH_WINDOW / 2 - textWidth_success / 2,
+                 HEIGHT_WINDOW / 2 - 10, 20, GREEN);
+      }
     }
 
     EndDrawing();
